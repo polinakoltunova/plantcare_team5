@@ -1,10 +1,15 @@
 # Настройки приложения
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
 class Settings:
 
     APP_NAME = "Plant Care - Система автоматизации ухода за растениями в ботаническом саду"
     DEBUG = True
 
-    DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/plant_care"
+    DATABASE_URL = os.getenv("DATABASE_URL")
 
     SECRET_KEY = "super_secret_key_for_dev"
     ALGORITHM = "HS256"

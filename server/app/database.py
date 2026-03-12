@@ -1,7 +1,8 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from app.config import settings
+from app.models.models import Base
 
 # Создание подключения к бд
 engine = create_engine(
@@ -16,10 +17,6 @@ SessionLocal = sessionmaker(
     bind=engine
 )
 
-# Базовый класс для моделей SQLAlchemy
-Base = declarative_base()
-
-
 # Зависимость для FastAPI
 def get_db():
     # Создаёт сессию бд для запроса и закрывает её после завершения
@@ -28,3 +25,6 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def create_tables():
+    Base.metadata.create_all(bind=engine)
