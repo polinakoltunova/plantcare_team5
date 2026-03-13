@@ -6,6 +6,8 @@ from app.config import settings
 from app.database import create_tables
 
 from app.routers.auth import router as auth_router
+from app.routers.plants import router as plants_router
+from app.routers.tasks import router as tasks_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -38,3 +40,5 @@ def health_check():
     }
 
 app.include_router(auth_router)
+app.include_router(plants_router)
+app.include_router(tasks_router)
