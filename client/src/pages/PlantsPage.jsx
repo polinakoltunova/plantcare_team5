@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPlant, getPlants } from "../api/plants";
-import PlantTable from "../components/PlantTable";
-import PlantForm from "../components/PlantForm";
+import PlantTable from "../components/plants/PlantTable";
+import PlantForm from "../components/plants/PlantForm";
 function PlantsPage() {
   const [plants, setPlants] = useState([]);
   const [search, setSearch] = useState("");
