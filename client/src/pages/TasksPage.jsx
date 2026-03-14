@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createTask, getTasks } from "../api/tasks";
-import TaskTable from "../components/TaskTable";
+import TaskTable from "../components/tasks/TaskTable";
 import TaskForm from "../components/TaskForm";
 function TasksPage() {
   const [tasks, setTasks] = useState([]);
