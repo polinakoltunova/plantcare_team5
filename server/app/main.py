@@ -9,18 +9,22 @@ from app.seed import seed_all
 from app.routers.auth import router as auth_router
 from app.routers.plants import router as plants_router
 from app.routers.tasks import router as tasks_router
+from app.routers.observations import router as observations_router
+from app.routers.climate import router as climate_router
+from app.routers.zones import router as zones_router
+from app.routers.reference import router as reference_router
 
 app = FastAPI(
-    title=settings.APP_NAME,
-    debug=settings.DEBUG
+   title=settings.APP_NAME,
+   debug=settings.DEBUG
 )
 
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+   CORSMiddleware,
+   allow_origins=settings.CORS_ORIGINS,
+   allow_credentials=True,
+   allow_methods=["*"],
+   allow_headers=["*"],
 )
 
 @app.on_event("startup")
@@ -33,19 +37,22 @@ def on_startup():
     finally:
         db.close()
 
+
 @app.get("/")
 def root():
-    return {
-        "message": "Сервер API системы Plant Care запущен",
-        "app_name": settings.APP_NAME
-    }
+   return {
+       "message": "Сервер API системы Plant Care запущен",
+       "app_name": settings.APP_NAME
+   }
 
 @app.get("/health")
 def health_check():
-    return {
-        "status": "ok"
-    }
+   return {"status": "ok"}
 
 app.include_router(auth_router)
 app.include_router(plants_router)
 app.include_router(tasks_router)
+app.include_router(observations_router)
+app.include_router(climate_router)
+app.include_router(zones_router)
+app.include_router(reference_router)
