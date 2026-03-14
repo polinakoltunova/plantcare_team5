@@ -10,15 +10,16 @@ function LoginPage() {
     }));
   };
   const submit = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await login(form);
-      localStorage.setItem("token", response.data.access_token);
-      setResult("Вход выполнен");
-    } catch (error) {
-      setResult("Ошибка входа");
-    }
-  };
+ e.preventDefault();
+ try {
+   const data = await login(form);
+   localStorage.setItem("token", data.access_token);
+   setResult("Вход выполнен");
+ } catch (error) {
+   setResult("Ошибка входа");
+ }
+};
+
   return (
     <div>
       <h1>Вход</h1>
