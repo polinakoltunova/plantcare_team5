@@ -3,7 +3,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.database import create_tables
+from app.database import create_tables, SessionLocal
+from app.seed import seed_all
 
 from app.routers.auth import router as auth_router
 from app.routers.plants import router as plants_router
@@ -25,6 +26,12 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     create_tables()
+
+    db = SessionLocal()
+    try:
+        seed_all(db)
+    finally:
+        db.close()
 
 @app.get("/")
 def root():
