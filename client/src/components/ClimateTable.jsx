@@ -6,6 +6,7 @@ function ClimateTable({ items }) {
     <table border="1" cellPadding="8" cellSpacing="0" width="100%">
       <thead>
         <tr>
+          <th>Зона</th>
           <th>Температура</th>
           <th>Влажность</th>
           <th>Время измерения</th>
@@ -14,6 +15,7 @@ function ClimateTable({ items }) {
       <tbody>
         {items.map((row) => (
           <tr key={row.id}>
+            <td>{row.zone_name || row.zone_id}</td>
             <td>{row.temperature}</td>
             <td>{row.humidity}</td>
             <td>{new Date(row.measured_at).toLocaleString()}</td>
@@ -23,4 +25,5 @@ function ClimateTable({ items }) {
     </table>
   );
 }
+
 export default ClimateTable;

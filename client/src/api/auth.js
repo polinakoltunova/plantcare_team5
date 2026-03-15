@@ -23,3 +23,8 @@ export const getUsers = async () => {
  const response = await api.get("/users");
  return response.data;
 };
+
+export async function registerUser(data) {
+  const response = await api.post("/auth/register", data);
+  return response.data;
+}
