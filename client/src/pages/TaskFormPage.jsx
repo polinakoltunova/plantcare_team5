@@ -1,174 +1,168 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { getTaskById, createTask, updateTask } from "../api/tasks";
+import { getTask, createTask, updateTask } from "../api/tasks";
 import { getPlants } from "../api/plants";
-import { getZones } from "../api/zones";
-import { getOperations } from "../api/operations"; // если есть
-import { getUsers } from "../api/auth"; // если нужно выбирать исполнителя
+import { getCareOperations } from "../api/careOperations";
+import { getUsers } from "../api/auth";
+
+const INITIAL_FORM = {
+  plant_id: "",
+  operation_id: "",
+  assigned_user_id: "",
+  planned_date: "",
+  due_date: "",
+  comment: "",
+};
+
+function toDateTimeLocalValue(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - offset * 60000);
+  return local.toISOString().slice(0, 16);
+}
 
 export default function TaskFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-
   const [plants, setPlants] = useState([]);
-  const [zones, setZones] = useState([]);
   const [operations, setOperations] = useState([]);
   const [users, setUsers] = useState([]);
-
-  const [form, setForm] = useState({
-    plant_id: "",
-    zone_id: "",
-    operation_id: "",
-    assigned_user_id: "",
-    planned_date: "",
-    comment: "",
-  });
-
+  const [form, setForm] = useState(INITIAL_FORM);
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Загружаем справочники
   useEffect(() => {
-    async function loadData() {
-      const [plantsData, zonesData, opsData, usersData] = await Promise.all([
-        getPlants(),
-        getZones(),
-        getOperations(),
-        getUsers(),
-      ]);
-
-      setPlants(plantsData);
-      setZones(zonesData);
-      setOperations(opsData);
-      setUsers(usersData);
+    async function loadReferenceData() {
+      try {
+        const [plantsRes, operationsRes, usersRes] = await Promise.all([
+          getPlants(),
+          getCareOperations(),
+          getUsers(),
+        ]);
+        setPlants(plantsRes.data);
+        setOperations(operationsRes.data);
+        setUsers(usersRes.data);
+      } catch (e) {
+        setError("Не удалось загрузить справочники для формы задачи");
+      }
     }
-    loadData();
+    loadReferenceData();
   }, []);
 
-  // Если редактирование — загружаем задачу
   useEffect(() => {
     if (!id) return;
-
-    async function loadTask() {
-      const task = await getTaskById(id);
-      setForm({
-        plant_id: task.plant_id || "",
-        zone_id: task.zone_id || "",
-        operation_id: task.operation_id,
-        assigned_user_id: task.assigned_user_id || "",
-        planned_date: task.planned_date.slice(0, 16), // YYYY-MM-DDTHH:mm
-        comment: task.comment || "",
-      });
+    async function loadTaskData() {
+      try {
+        const response = await getTask(id);
+        const task = response.data;
+        setForm({
+          plant_id: task.plant_id || "",
+          operation_id: task.operation_id || "",
+          assigned_user_id: task.assigned_user_id || "",
+          planned_date: toDateTimeLocalValue(task.planned_date),
+          due_date: toDateTimeLocalValue(task.due_date),
+          comment: task.comment || "",
+        });
+      } catch (e) {
+        setError("Не удалось загрузить задачу");
+      }
     }
-
-    loadTask();
+    loadTaskData();
   }, [id]);
 
-  function handleChange(e) {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  function handleChange(event) {
+    const { name, value } = event.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function handleSubmit(event) {
+    event.preventDefault();
     setLoading(true);
+    setError("");
+
+    const payload = {
+      plant_id: form.plant_id || null,
+      operation_id: form.operation_id,
+      assigned_user_id: form.assigned_user_id || null,
+      planned_date: new Date(form.planned_date).toISOString(),
+      due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
+      comment: form.comment || null,
+    };
 
     try {
       if (id) {
-        await updateTask(id, form);
+        await updateTask(id, payload);
       } else {
-        await createTask(form);
+        await createTask(payload);
       }
       navigate("/tasks");
+    } catch (e) {
+      setError(e?.response?.data?.detail || "Не удалось сохранить задачу");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div style={{ maxWidth: "600px", margin: "0 auto" }}>
-      <h2>{id ? "Редактировать задачу" : "Создать задачу"}</h2>
-
-      <form onSubmit={handleSubmit}>
-
+    <div style={{ maxWidth: 640, margin: "0 auto" }}>
+      <h1>{id ? "Редактировать задачу" : "Создать задачу"}</h1>
+      {error && <p style={{ color: "crimson" }}>{error}</p>}
+      <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
         <label>
-          Растение (необязательно):
+          Растение
           <select name="plant_id" value={form.plant_id} onChange={handleChange}>
-            <option value="">—</option>
-            {plants.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.common_name || p.scientific_name}
+            <option value="">Без привязки к растению</option>
+            {plants.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.inventory_number} — {item.species_name || item.origin_country || item.id}
               </option>
             ))}
           </select>
         </label>
 
         <label>
-          Зона (если задача для зоны):
-          <select name="zone_id" value={form.zone_id} onChange={handleChange}>
-            <option value="">—</option>
-            {zones.map((z) => (
-              <option key={z.id} value={z.id}>
-                {z.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Операция ухода:
-          <select
-            name="operation_id"
-            value={form.operation_id}
-            onChange={handleChange}
-            required
-          >
+          Операция ухода
+          <select name="operation_id" value={form.operation_id} onChange={handleChange} required>
             <option value="">Выберите операцию</option>
-            {operations.map((op) => (
-              <option key={op.id} value={op.id}>
-                {op.name}
+            {operations.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
               </option>
             ))}
           </select>
         </label>
 
         <label>
-          Исполнитель:
-          <select
-            name="assigned_user_id"
-            value={form.assigned_user_id}
-            onChange={handleChange}
-          >
-            <option value="">—</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.first_name} {u.last_name}
+          Исполнитель
+          <select name="assigned_user_id" value={form.assigned_user_id} onChange={handleChange}>
+            <option value="">Не назначен</option>
+            {users.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.first_name || item.username} {item.last_name || ""}
               </option>
             ))}
           </select>
         </label>
 
         <label>
-          Дата и время:
-          <input
-            type="datetime-local"
-            name="planned_date"
-            value={form.planned_date}
-            onChange={handleChange}
-            required
-          />
+          Плановая дата
+          <input type="datetime-local" name="planned_date" value={form.planned_date} onChange={handleChange} required />
         </label>
 
         <label>
-          Комментарий:
-          <textarea
-            name="comment"
-            value={form.comment}
-            onChange={handleChange}
-          />
+          Срок выполнения
+          <input type="datetime-local" name="due_date" value={form.due_date} onChange={handleChange} />
+        </label>
+
+        <label>
+          Комментарий
+          <textarea name="comment" value={form.comment} onChange={handleChange} rows={4} />
         </label>
 
         <button type="submit" disabled={loading}>
-          {loading ? "Сохранение..." : "Сохранить"}
+          {loading ? "Сохранение..." : "Сохранить задачу"}
         </button>
       </form>
     </div>

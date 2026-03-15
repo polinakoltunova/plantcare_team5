@@ -1,23 +1,14 @@
 import api from "./api";
-export const getPlants = (zone_id, search) => {
-  let url = "/plants";
-  const params = [];
-  if (zone_id) params.push(`zone_id=${zone_id}`);
-  if (search) params.push(`search=${search}`);
-  if (params.length > 0) {
-    url += `?${params.join("&")}`;
-  }
-  return api.get(url);
+
+export const getPlants = (zoneId, search) => {
+  const params = {};
+  if (zoneId) params.zone_id = zoneId;
+  if (search) params.search = search;
+  return api.get("/plants", { params });
 };
-export const getPlant = (id) => {
-  return api.get(`/plants/${id}`);
-};
-export const createPlant = (data) => {
-  return api.post("/plants", data);
-};
-export const updatePlant = (id, data) => {
-  return api.put(`/plants/${id}`, data);
-};
-export const deletePlant = (id) => {
-  return api.delete(`/plants/${id}`);
-};
+
+export const getPlant = (id) => api.get(`/plants/${id}`);
+export const createPlant = (data) => api.post("/plants", data);
+export const updatePlant = (id, data) => api.put(`/plants/${id}`, data);
+export const deletePlant = (id) => api.delete(`/plants/${id}`);
+export const getPlantSchedule = (id) => api.get(`/plants/${id}/schedule`);
