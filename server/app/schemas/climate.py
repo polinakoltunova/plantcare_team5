@@ -13,6 +13,13 @@ class ClimateMeasurementCreate(BaseModel):
    measured_at: datetime | None = None
 
 
+class ClimateMeasurementUpdate(BaseModel):
+   zone_id: UUID | None = None
+   temperature: Decimal | None = None
+   humidity: Decimal | None = None
+   measured_at: datetime | None = None
+
+
 class ClimateMeasurementOut(BaseModel):
    id: UUID
    location_id: UUID
