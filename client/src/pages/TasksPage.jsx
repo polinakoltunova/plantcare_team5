@@ -1,36 +1,77 @@
 import { useEffect, useState } from "react";
-import { createTask, getTasks } from "../api/tasks";
+import { Link } from "react-router-dom";
+import { getTasks } from "../api/tasks";
 import TaskTable from "../components/tasks/TaskTable";
-import TaskForm from "../components/TaskForm";
-function TasksPage() {
+import Layout from "../components/Layout";
+
+export default function TasksPage() {
   const [tasks, setTasks] = useState([]);
   const [status, setStatus] = useState("");
+  const [loading, setLoading] = useState(false);
+
   const loadTasks = async () => {
-    const response = await getTasks(status || undefined, undefined);
-    setTasks(response.data);
+    setLoading(true);
+    try {
+      const response = await getTasks(status || undefined, undefined);
+      setTasks(response.data);
+    } finally {
+      setLoading(false);
+    }
   };
+
   useEffect(() => {
     loadTasks();
   }, []);
-  const handleCreate = async (data) => {
-    await createTask(data);
-    await loadTasks();
-  };
+
   return (
-    <div>
-      <h1>Задачи</h1>
-      <div style={{ marginBottom: "20px" }}>
-        <input
-          placeholder="Фильтр по статусу"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-        />
-        <button onClick={loadTasks}>Применить</button>
+    <Layout>
+      {/* Заголовок + кнопка */}
+      <div
+        className="page-header"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "20px",
+        }}
+      >
+        <h1>Задачи</h1>
+
+        {/* КНОПКА ДОБАВЛЕНИЯ */}
+        <Link
+          to="/tasks/new"
+          className="btn-primary"
+          style={{
+            background: "var(--green-main)",
+            color: "white",
+            padding: "8px 14px",
+            borderRadius: "8px",
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+        >
+          ➕ Добавить задачу
+        </Link>
       </div>
+
+      <div className="form-card" style={{ marginBottom: "20px" }}>
+        <div className="form-grid">
+          <label>
+            Фильтр по статусу
+            <input
+              placeholder="Например: pending / done / problem"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            />
+          </label>
+
+          <button onClick={loadTasks} disabled={loading}>
+            {loading ? "Загрузка..." : "Применить"}
+          </button>
+        </div>
+      </div>
+
       <TaskTable tasks={tasks} />
-      <h2 style={{ marginTop: "30px" }}>Создать задачу</h2>
-      <TaskForm onSubmit={handleCreate} />
-    </div>
+    </Layout>
   );
 }
-export default TasksPage;

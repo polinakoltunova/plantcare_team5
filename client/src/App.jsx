@@ -1,12 +1,8 @@
 import Layout from "./components/Layout";
 import AppRouter from "./router/AppRouter";
 
-function App() {
+export default function App() {
   return (
-    <Layout>
       <AppRouter />
-    </Layout>
   );
 }
-
-export default App;
