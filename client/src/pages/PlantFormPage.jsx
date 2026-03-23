@@ -4,10 +4,13 @@ import { useNavigate } from "react-router-dom";
 import { createPlant } from "../api/plants";
 import { getSpecies } from "../api/species";
 import { getZones } from "../api/zones";
+import { getLocations } from "../api/locations";
+import Layout from "../components/Layout";
 
 const INITIAL_FORM = {
   species_id: "",
   zone_id: "",
+  location_id: "",
   inventory_number: "",
   planting_date: "",
   status: "healthy",
@@ -16,16 +19,24 @@ const INITIAL_FORM = {
 
 export default function PlantFormPage() {
   const navigate = useNavigate();
+
   const [species, setSpecies] = useState([]);
   const [zones, setZones] = useState([]);
+  const [locations, setLocations] = useState([]);
+
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(INITIAL_FORM);
 
+  // Загружаем виды и зоны
   useEffect(() => {
     async function loadReferenceData() {
       try {
-        const [speciesRes, zonesRes] = await Promise.all([getSpecies(), getZones()]);
+        const [speciesRes, zonesRes] = await Promise.all([
+          getSpecies(),
+          getZones(),
+        ]);
+
         setSpecies(speciesRes.data);
         setZones(zonesRes.data);
       } catch (e) {
@@ -34,6 +45,26 @@ export default function PlantFormPage() {
     }
     loadReferenceData();
   }, []);
+
+  // Загружаем локации при выборе зоны
+  useEffect(() => {
+    if (!form.zone_id) {
+      setLocations([]);
+      setForm((prev) => ({ ...prev, location_id: "" }));
+      return;
+    }
+
+    async function loadLocations() {
+      try {
+        const res = await getLocations(form.zone_id);
+        setLocations(res.data);
+      } catch {
+        setLocations([]);
+      }
+    }
+
+    loadLocations();
+  }, [form.zone_id]);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -44,15 +75,18 @@ export default function PlantFormPage() {
     event.preventDefault();
     setSaving(true);
     setError("");
+
     try {
       await createPlant({
         species_id: form.species_id,
         zone_id: form.zone_id,
+        location_id: form.location_id,
         inventory_number: form.inventory_number.trim(),
         planting_date: form.planting_date || null,
         status: form.status,
         notes: form.notes || null,
       });
+
       navigate("/plants");
     } catch (e) {
       setError(e?.response?.data?.detail || "Не удалось создать растение");
@@ -62,68 +96,121 @@ export default function PlantFormPage() {
   }
 
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto" }}>
-      <h1>Добавить растение</h1>
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
-        <label>
-          Вид растения
-          <select name="species_id" value={form.species_id} onChange={handleChange} required>
-            <option value="">Выберите вид</option>
-            {species.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.common_name || item.scientific_name}
-              </option>
-            ))}
-          </select>
-        </label>
+    <Layout>
+      <div className="form-card">
+        <h1>Добавить растение</h1>
 
-        <label>
-          Зона
-          <select name="zone_id" value={form.zone_id} onChange={handleChange} required>
-            <option value="">Выберите зону</option>
-            {zones.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {error && <p style={{ color: "crimson" }}>{error}</p>}
 
-        <label>
-          Инвентарный номер
-          <input
-            name="inventory_number"
-            value={form.inventory_number}
-            onChange={handleChange}
-            placeholder="Например, INV-001"
-            required
-          />
-        </label>
+        {/* Если в зоне нет локаций — предупреждение */}
+        {form.zone_id && locations.length === 0 && (
+          <p style={{ color: "crimson", marginBottom: "10px" }}>
+            В выбранной зоне нет ни одной локации. Нельзя создать растение без location_id.
+          </p>
+        )}
 
-        <label>
-          Дата высадки
-          <input type="date" name="planting_date" value={form.planting_date} onChange={handleChange} />
-        </label>
+        <form onSubmit={handleSubmit} className="form-grid">
+          <label>
+            Вид растения
+            <select
+              name="species_id"
+              value={form.species_id}
+              onChange={handleChange}
+              required
+            >
+              <option value="">Выберите вид</option>
+              {species.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.common_name || item.scientific_name}
+                </option>
+              ))}
+            </select>
+          </label>
 
-        <label>
-          Статус
-          <select name="status" value={form.status} onChange={handleChange}>
-            <option value="healthy">healthy</option>
-            <option value="needs_attention">needs_attention</option>
-            <option value="critical">critical</option>
-          </select>
-        </label>
+          <label>
+            Зона
+            <select
+              name="zone_id"
+              value={form.zone_id}
+              onChange={handleChange}
+              required
+            >
+              <option value="">Выберите зону</option>
+              {zones.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
 
-        <label>
-          Примечание
-          <textarea name="notes" value={form.notes} onChange={handleChange} rows={4} />
-        </label>
+          <label>
+            Локация
+            <select
+              name="location_id"
+              value={form.location_id}
+              onChange={handleChange}
+              required
+              disabled={!form.zone_id || locations.length === 0}
+            >
+              <option value="">Выберите локацию</option>
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.name}
+                </option>
+              ))}
+            </select>
+          </label>
 
-        <button type="submit" disabled={saving}>
-          {saving ? "Сохранение..." : "Сохранить растение"}
-        </button>
-      </form>
-    </div>
+          <label>
+            Инвентарный номер
+            <input
+              name="inventory_number"
+              value={form.inventory_number}
+              onChange={handleChange}
+              placeholder="Например, INV-001"
+              required
+            />
+          </label>
+
+          <label>
+            Дата высадки
+            <input
+              type="date"
+              name="planting_date"
+              value={form.planting_date}
+              onChange={handleChange}
+            />
+          </label>
+
+          <label>
+            Статус
+            <select
+              name="status"
+              value={form.status}
+              onChange={handleChange}
+            >
+              <option value="healthy">healthy</option>
+              <option value="needs_attention">needs_attention</option>
+              <option value="critical">critical</option>
+            </select>
+          </label>
+
+          <label>
+            Примечание
+            <textarea
+              name="notes"
+              value={form.notes}
+              onChange={handleChange}
+              rows={4}
+            />
+          </label>
+
+          <button type="submit" disabled={saving || locations.length === 0}>
+            {saving ? "Сохранение..." : "Сохранить растение"}
+          </button>
+        </form>
+      </div>
+    </Layout>
   );
 }

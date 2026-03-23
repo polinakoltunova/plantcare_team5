@@ -6,6 +6,8 @@ import { getPlants } from "../api/plants";
 import { getCareOperations } from "../api/careOperations";
 import { getUsers } from "../api/auth";
 
+import Layout from "../components/Layout";
+
 const INITIAL_FORM = {
   plant_id: "",
   operation_id: "",
@@ -35,42 +37,19 @@ export default function TaskFormPage() {
 
   useEffect(() => {
     async function loadReferenceData() {
-      try {
-        const [plantsRes, operationsRes, usersRes] = await Promise.all([
-          getPlants(),
-          getCareOperations(),
-          getUsers(),
-        ]);
-        setPlants(plantsRes.data);
-        setOperations(operationsRes.data);
-        setUsers(usersRes.data);
-      } catch (e) {
-        setError("Не удалось загрузить справочники для формы задачи");
-      }
+      const [plantsRes, operationsRes, usersRes] = await Promise.allSettled([
+        getPlants(),
+        getCareOperations(),
+        getUsers(),
+      ]);
+
+      setPlants(plantsRes.status === "fulfilled" ? plantsRes.value.data : []);
+      setOperations(operationsRes.status === "fulfilled" ? operationsRes.value.data : []);
+      setUsers(usersRes.status === "fulfilled" ? usersRes.value.data : []);
     }
+
     loadReferenceData();
   }, []);
-
-  useEffect(() => {
-    if (!id) return;
-    async function loadTaskData() {
-      try {
-        const response = await getTask(id);
-        const task = response.data;
-        setForm({
-          plant_id: task.plant_id || "",
-          operation_id: task.operation_id || "",
-          assigned_user_id: task.assigned_user_id || "",
-          planned_date: toDateTimeLocalValue(task.planned_date),
-          due_date: toDateTimeLocalValue(task.due_date),
-          comment: task.comment || "",
-        });
-      } catch (e) {
-        setError("Не удалось загрузить задачу");
-      }
-    }
-    loadTaskData();
-  }, [id]);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -106,65 +85,69 @@ export default function TaskFormPage() {
   }
 
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto" }}>
-      <h1>{id ? "Редактировать задачу" : "Создать задачу"}</h1>
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
-        <label>
-          Растение
-          <select name="plant_id" value={form.plant_id} onChange={handleChange}>
-            <option value="">Без привязки к растению</option>
-            {plants.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.inventory_number} — {item.species_name || item.origin_country || item.id}
-              </option>
-            ))}
-          </select>
-        </label>
+    <Layout>
+      <div className="form-card">
+        <h1>{id ? "Редактировать задачу" : "Создать задачу"}</h1>
 
-        <label>
-          Операция ухода
-          <select name="operation_id" value={form.operation_id} onChange={handleChange} required>
-            <option value="">Выберите операцию</option>
-            {operations.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {error && <p style={{ color: "crimson" }}>{error}</p>}
 
-        <label>
-          Исполнитель
-          <select name="assigned_user_id" value={form.assigned_user_id} onChange={handleChange}>
-            <option value="">Не назначен</option>
-            {users.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.first_name || item.username} {item.last_name || ""}
-              </option>
-            ))}
-          </select>
-        </label>
+        <form onSubmit={handleSubmit} className="form-grid">
+          <label>
+            Растение
+            <select name="plant_id" value={form.plant_id} onChange={handleChange}>
+              <option value="">Без привязки к растению</option>
+              {plants.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.inventory_number} — {item.species_name || item.origin_country || item.id}
+                </option>
+              ))}
+            </select>
+          </label>
 
-        <label>
-          Плановая дата
-          <input type="datetime-local" name="planned_date" value={form.planned_date} onChange={handleChange} required />
-        </label>
+          <label>
+            Операция ухода
+            <select name="operation_id" value={form.operation_id} onChange={handleChange} required>
+              <option value="">Выберите операцию</option>
+              {operations.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
 
-        <label>
-          Срок выполнения
-          <input type="datetime-local" name="due_date" value={form.due_date} onChange={handleChange} />
-        </label>
+          <label>
+            Исполнитель
+            <select name="assigned_user_id" value={form.assigned_user_id} onChange={handleChange}>
+              <option value="">Не назначен</option>
+              {users?.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.first_name || item.username} {item.last_name || ""}
+                </option>
+              ))}
+            </select>
+          </label>
 
-        <label>
-          Комментарий
-          <textarea name="comment" value={form.comment} onChange={handleChange} rows={4} />
-        </label>
+          <label>
+            Плановая дата
+            <input type="datetime-local" name="planned_date" value={form.planned_date} onChange={handleChange} required />
+          </label>
 
-        <button type="submit" disabled={loading}>
-          {loading ? "Сохранение..." : "Сохранить задачу"}
-        </button>
-      </form>
-    </div>
+          <label>
+            Срок выполнения
+            <input type="datetime-local" name="due_date" value={form.due_date} onChange={handleChange} />
+          </label>
+
+          <label>
+            Комментарий
+            <textarea name="comment" value={form.comment} onChange={handleChange} rows={4} />
+          </label>
+
+          <button type="submit" disabled={loading}>
+            {loading ? "Сохранение..." : "Сохранить задачу"}
+          </button>
+        </form>
+      </div>
+    </Layout>
   );
 }

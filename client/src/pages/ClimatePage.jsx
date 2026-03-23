@@ -2,45 +2,35 @@ import { useEffect, useState } from "react";
 import { createClimateMeasurement, getClimateMeasurements } from "../api/climate";
 import { getZones } from "../api/zones";
 import ClimateTable from "../components/ClimateTable";
+import Layout from "../components/Layout";
 
-function ClimatePage() {
+export default function ClimatePage() {
   const [items, setItems] = useState([]);
   const [zones, setZones] = useState([]);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({
-    zone_id: "",
-    temperature: "",
-    humidity: "",
-  });
-
-  const loadClimate = async () => {
-    const response = await getClimateMeasurements();
-    setItems(response.data);
-  };
+  const [form, setForm] = useState({ zone_id: "", temperature: "", humidity: "" });
 
   useEffect(() => {
     async function loadAll() {
       try {
-        const [climateRes, zonesRes] = await Promise.all([getClimateMeasurements(), getZones()]);
+        const [climateRes, zonesRes] = await Promise.all([
+          getClimateMeasurements(),
+          getZones(),
+        ]);
         setItems(climateRes.data);
         setZones(zonesRes.data);
-      } catch (e) {
-        setError("Не удалось загрузить климатические измерения или зоны");
+      } catch {
+        setError("Не удалось загрузить климатические данные");
       }
     }
     loadAll();
   }, []);
 
-  const handleChange = (e) => {
-    setForm((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
+  const handleChange = (e) =>
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
   const submit = async (e) => {
     e.preventDefault();
-    setError("");
     try {
       await createClimateMeasurement({
         zone_id: form.zone_id,
@@ -48,33 +38,38 @@ function ClimatePage() {
         humidity: Number(form.humidity),
       });
       setForm({ zone_id: "", temperature: "", humidity: "" });
-      await loadClimate();
+      const updated = await getClimateMeasurements();
+      setItems(updated.data);
     } catch (err) {
-      setError(err?.response?.data?.detail || "Не удалось добавить измерение");
+      setError(err?.response?.data?.detail || "Ошибка сохранения");
     }
   };
 
   return (
-    <div>
+    <Layout>
       <h1>Климатические измерения</h1>
+
       {error && <p style={{ color: "crimson" }}>{error}</p>}
+
       <ClimateTable items={items} />
-      <h2 style={{ marginTop: "30px" }}>Добавить измерение</h2>
-      <form onSubmit={submit} style={{ display: "grid", gap: "10px", maxWidth: "400px" }}>
-        <select name="zone_id" value={form.zone_id} onChange={handleChange} required>
-          <option value="">Выберите зону</option>
-          {zones.map((zone) => (
-            <option key={zone.id} value={zone.id}>
-              {zone.name}
-            </option>
-          ))}
-        </select>
-        <input name="temperature" type="number" step="0.1" placeholder="Температура" value={form.temperature} onChange={handleChange} required />
-        <input name="humidity" type="number" step="0.1" placeholder="Влажность" value={form.humidity} onChange={handleChange} required />
-        <button type="submit">Сохранить</button>
-      </form>
-    </div>
+
+      <div className="form-card" style={{ marginTop: 30 }}>
+        <h2>Добавить измерение</h2>
+
+        <form className="form-grid" onSubmit={submit}>
+          <select name="zone_id" value={form.zone_id} onChange={handleChange} required>
+            <option value="">Выберите зону</option>
+            {zones.map((z) => (
+              <option key={z.id} value={z.id}>{z.name}</option>
+            ))}
+          </select>
+
+          <input name="temperature" type="number" step="0.1" placeholder="Температура" value={form.temperature} onChange={handleChange} required />
+          <input name="humidity" type="number" step="0.1" placeholder="Влажность" value={form.humidity} onChange={handleChange} required />
+
+          <button type="submit">Сохранить</button>
+        </form>
+      </div>
+    </Layout>
   );
 }
-
-export default ClimatePage;
