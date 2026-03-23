@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.models import ClimateMeasurement, User, Location
-from app.schemas.climate import ClimateMeasurementCreate, ClimateMeasurementOut
+from app.schemas.climate import ClimateMeasurementCreate, ClimateMeasurementOut, ClimateMeasurementUpdate
 
 router = APIRouter(prefix="/climate", tags=["Climate"])
 
@@ -84,3 +84,45 @@ def create_measurement(
    db.refresh(item)
 
    return _serialize_measurement(item, location.zone_id)
+
+
+@router.put("/{measurement_id}", response_model=ClimateMeasurementOut)
+def update_measurement(
+   measurement_id: UUID,
+   payload: ClimateMeasurementUpdate,
+   db: Session = Depends(get_db),
+   _user: User = Depends(get_current_user),
+):
+   item = db.query(ClimateMeasurement).filter(ClimateMeasurement.id == measurement_id).first()
+   if not item:
+       raise HTTPException(status_code=404, detail="Climate measurement not found")
+
+   location = db.query(Location).filter(Location.id == item.location_id).first()
+   if payload.zone_id is not None:
+       location = _resolve_location_by_zone(db, payload.zone_id)
+       item.location_id = location.id
+   if payload.temperature is not None:
+       item.temperature = payload.temperature
+   if payload.humidity is not None:
+       item.humidity = payload.humidity
+   if payload.measured_at is not None:
+       item.measured_at = payload.measured_at
+
+   db.commit()
+   db.refresh(item)
+   return _serialize_measurement(item, location.zone_id if location else None)
+
+
+@router.delete("/{measurement_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_measurement(
+   measurement_id: UUID,
+   db: Session = Depends(get_db),
+   _user: User = Depends(get_current_user),
+):
+   item = db.query(ClimateMeasurement).filter(ClimateMeasurement.id == measurement_id).first()
+   if not item:
+       raise HTTPException(status_code=404, detail="Climate measurement not found")
+
+   db.delete(item)
+   db.commit()
+   return None
