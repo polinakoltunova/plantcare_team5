@@ -7,10 +7,28 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models.models import Observation, User, Plant
-from app.schemas.observations import ObservationCreate, ObservationOut
+from app.models.models import Observation, User, Plant, CareTask
+from app.schemas.observations import ObservationCreate, ObservationOut, ObservationUpdate
 
 router = APIRouter(prefix="/observations", tags=["Observations"])
+
+
+def _ensure_plant_exists(db: Session, plant_id: UUID) -> None:
+   if not db.query(Plant).filter(Plant.id == plant_id).first():
+       raise HTTPException(
+           status_code=status.HTTP_400_BAD_REQUEST,
+           detail=f"Plant with id {plant_id} does not exist. Use GET /plants to copy a real plant_id.",
+       )
+
+
+def _ensure_task_exists_if_given(db: Session, task_id: UUID | None) -> None:
+   if task_id is None:
+       return
+   if not db.query(CareTask).filter(CareTask.id == task_id).first():
+       raise HTTPException(
+           status_code=status.HTTP_400_BAD_REQUEST,
+           detail=f"Task with id {task_id} does not exist. Use GET /tasks or set task_id to null.",
+       )
 
 
 def _serialize_observation(item: Observation) -> dict:
@@ -73,6 +91,9 @@ def create_observation(
    db: Session = Depends(get_db),
    current_user: User = Depends(get_current_user),
 ):
+   _ensure_plant_exists(db, payload.plant_id)
+   _ensure_task_exists_if_given(db, payload.task_id)
+
    item = Observation(
        plant_id=payload.plant_id,
        task_id=payload.task_id,
@@ -87,3 +108,51 @@ def create_observation(
    db.commit()
    db.refresh(item)
    return _serialize_observation(item)
+
+
+@router.put("/{observation_id}", response_model=ObservationOut)
+def update_observation(
+   observation_id: UUID,
+   payload: ObservationUpdate,
+   db: Session = Depends(get_db),
+   _user: User = Depends(get_current_user),
+):
+   item = db.query(Observation).filter(Observation.id == observation_id).first()
+   if not item:
+       raise HTTPException(status_code=404, detail="Observation not found")
+
+   if payload.plant_id is not None:
+       _ensure_plant_exists(db, payload.plant_id)
+       item.plant_id = payload.plant_id
+   if payload.task_id is not None:
+       _ensure_task_exists_if_given(db, payload.task_id)
+       item.task_id = payload.task_id
+   if payload.type is not None:
+       item.observation_type = payload.type
+   if payload.description is not None:
+       item.description = payload.description
+   if payload.health_status is not None:
+       item.health_status = payload.health_status
+   if payload.severity is not None:
+       item.severity = payload.severity
+   if payload.photo_url is not None:
+       item.photo_url = payload.photo_url
+
+   db.commit()
+   db.refresh(item)
+   return _serialize_observation(item)
+
+
+@router.delete("/{observation_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_observation(
+   observation_id: UUID,
+   db: Session = Depends(get_db),
+   _user: User = Depends(get_current_user),
+):
+   item = db.query(Observation).filter(Observation.id == observation_id).first()
+   if not item:
+       raise HTTPException(status_code=404, detail="Observation not found")
+
+   db.delete(item)
+   db.commit()
+   return None

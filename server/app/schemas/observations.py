@@ -17,6 +17,17 @@ class ObservationCreate(BaseModel):
    photo_url: str | None = None
 
 
+class ObservationUpdate(BaseModel):
+   plant_id: UUID | None = None
+   zone_id: UUID | None = None  # принимаем для совместимости с клиентом
+   task_id: UUID | None = None
+   type: str | None = None
+   description: str | None = None
+   health_status: str | None = None
+   severity: int | None = None
+   photo_url: str | None = None
+
+
 class ObservationOut(BaseModel):
    id: UUID
    plant_id: UUID
